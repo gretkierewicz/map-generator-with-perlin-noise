@@ -15,8 +15,7 @@ class Main:
 
         self.clock = pygame.time.Clock()
         self.screen = pygame.display.set_mode((self.SCREEN_WIDTH, self.SCREEN_HEIGHT))
-        self.widgets = []
-        self.table = []
+        self.widgets = []   # widget table for refresh purposes
         self.noise = OpenSimplex()
 
         # test slider (length of screen - 10 - 10 - 15) last one is length of marker
@@ -48,14 +47,13 @@ class Main:
         self.screen.fill((70, 70, 70))
 
     def generate(self):
-        x = np.arange(0, self.MAP_SIZE)
-        y = np.arange(0, self.MAP_SIZE)
-        X, Y = np.meshgrid(x, y)
-        Z = X + Y
-        for x in range(800):
-            for y in range(800):
-                Z[x][y] = 127 * (1 + self.noise.noise2d(x / (self.slider1.mark + 1) / int(self.entry1.text),
-                                                        y / (self.slider1.mark + 1) / int(self.entry1.text)))
+        Z = np.empty((self.MAP_SIZE, self.MAP_SIZE, 3), dtype=np.uint8)
+        for x in range(self.MAP_SIZE):
+            for y in range(self.MAP_SIZE):
+                noise_value = 127 * (1 + self.noise.noise2d(
+                    x / (self.slider1.mark + 1) / float(self.entry1.text.replace(',', '.')),
+                    y / (self.slider1.mark + 1) / float(self.entry1.text.replace(',', '.'))))
+                Z[x][y] = [noise_value, noise_value, noise_value]
         surf = pygame.surfarray.make_surface(Z)
         # Update the screen
         self.screen.blit(surf, (self.SCREEN_WIDTH - self.MAP_SIZE - 20, 20))
