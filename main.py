@@ -3,6 +3,7 @@ from opensimplex import OpenSimplex
 import pgui
 import pygame
 import sys
+import multiprocessing
 
 pygame.init()
 
@@ -19,15 +20,15 @@ class Main:
         self.noise = OpenSimplex()
 
         # test slider (length of screen - 10 - 10 - 15) last one is length of marker
-        self.slider1 = pgui.Slider(self, orientation="horizontal", length=340, max=100)
+        self.slider1 = pgui.Slider(self, orientation="horizontal", length=320, max=100)
         self.slider1.move(20, 20)
-        self.slider1.set_mark(50)    # has to be set after .move (wth!?) otherwise does not works
+        self.slider1.set_mark(50)    # has to be set after .move (wth!?) otherwise does not work
         self.widgets.append(self.slider1)
 
         # test entry
         self.entry1 = pgui.Entry(self)
         self.entry1.move(20, 70)
-        self.entry1.text = "50"
+        self.entry1.text = "1"
         self.widgets.append(self.entry1)
 
         # Generate Button
@@ -46,15 +47,25 @@ class Main:
 
         self.screen.fill((70, 70, 70))
 
+        # place empty (black) screen in place of noise map
+        self.screen.blit(pygame.surfarray.make_surface(np.empty((self.MAP_SIZE, self.MAP_SIZE, 3), dtype=np.uint8)),
+                         (self.SCREEN_WIDTH - self.MAP_SIZE - 20, 20))
+
     def generate(self):
-        Z = np.empty((self.MAP_SIZE, self.MAP_SIZE, 3), dtype=np.uint8)
+        noise_map = np.empty((self.MAP_SIZE, self.MAP_SIZE, 3), dtype=np.float)
         for x in range(self.MAP_SIZE):
             for y in range(self.MAP_SIZE):
-                noise_value = 127 * (1 + self.noise.noise2d(
+                noise_value = self.noise.noise2d(
                     x / (self.slider1.mark + 1) / float(self.entry1.text.replace(',', '.')),
-                    y / (self.slider1.mark + 1) / float(self.entry1.text.replace(',', '.'))))
-                Z[x][y] = [noise_value, noise_value, noise_value]
-        surf = pygame.surfarray.make_surface(Z)
+                    y / (self.slider1.mark + 1) / float(self.entry1.text.replace(',', '.')))
+                noise_map[x][y] = [noise_value, noise_value, noise_value]
+        number_of_levels = 8
+        # normalize values to 0-number_of_levels
+        noise_map = ((noise_map - np.amin(noise_map)) / noise_map.ptp() * number_of_levels).astype(int)
+        # rescale to 0-255 (grayscale)
+        noise_map = noise_map / number_of_levels * 255
+        surf = pygame.surfarray.make_surface(noise_map)
+
         # Update the screen
         self.screen.blit(surf, (self.SCREEN_WIDTH - self.MAP_SIZE - 20, 20))
 
