@@ -1,35 +1,39 @@
+from noise import snoise2
+from time import time
 import numpy as np
-from opensimplex import OpenSimplex
 import pgui
 import pygame
 import sys
-import multiprocessing
 
 pygame.init()
 
 
 class Main:
     def __init__(self):
-        self.SCREEN_HEIGHT = 840
-        self.SCREEN_WIDTH = 1200
+        self.SCREEN_HEIGHT = 880
+        self.SCREEN_WIDTH = 1400
         self.MAP_SIZE = 800
 
         self.clock = pygame.time.Clock()
         self.screen = pygame.display.set_mode((self.SCREEN_WIDTH, self.SCREEN_HEIGHT))
         self.widgets = []   # widget table for refresh purposes
-        self.noise = OpenSimplex()
 
-        # test slider (length of screen - 10 - 10 - 15) last one is length of marker
-        self.slider1 = pgui.Slider(self, orientation="horizontal", length=320, max=100)
-        self.slider1.move(20, 20)
-        self.slider1.set_mark(50)    # has to be set after .move (wth!?) otherwise does not work
-        self.widgets.append(self.slider1)
+        # octaves slider
+        self.octaves_slider = pgui.Slider(self, orientation="horizontal", length=320, max=19)
+        self.octaves_slider.move(10, 40)
+        self.octaves_slider.set_width(25)
+        self.octaves_slider.set_label("octaves")
+        self.octaves_slider.set_font_size(26)
+        self.octaves_slider.set_font("Calibri")
+        self.octaves_slider.set_font_color((210, 210, 210, 0))  # 4-tuple this is a bug in pgui slider function
+        self.octaves_slider.set_mark(6)     # has to be set after .move (wth!?) otherwise does not work
+        self.widgets.append(self.octaves_slider)
 
-        # test entry
-        self.entry1 = pgui.Entry(self)
-        self.entry1.move(20, 70)
-        self.entry1.text = "1"
-        self.widgets.append(self.entry1)
+        # octaves entry
+        self.octaves_entry = pgui.Entry(self)
+        self.octaves_entry.move(40 + self.octaves_slider.get_length(), 40)
+        self.octaves_entry.max_length = 3
+        self.widgets.append(self.octaves_entry)
 
         # Generate Button
         self.gen_btn = pgui.Button(self, width=100, height=40, func=self.generate, text="Generate")
@@ -47,25 +51,27 @@ class Main:
 
         self.screen.fill((70, 70, 70))
 
-        # place empty (black) screen in place of noise map
-        self.screen.blit(pygame.surfarray.make_surface(np.empty((self.MAP_SIZE, self.MAP_SIZE, 3), dtype=np.uint8)),
-                         (self.SCREEN_WIDTH - self.MAP_SIZE - 20, 20))
-
     def generate(self):
-        noise_map = np.empty((self.MAP_SIZE, self.MAP_SIZE, 3), dtype=np.float)
+        start_time = time()
+        noise_RGB = np.empty((self.MAP_SIZE, self.MAP_SIZE, 3), dtype=np.float)
+        noise_map = np.empty((self.MAP_SIZE, self.MAP_SIZE), dtype=np.float)
         for x in range(self.MAP_SIZE):
+            factor = 400
+            x_factor = x / factor
             for y in range(self.MAP_SIZE):
-                noise_value = self.noise.noise2d(
-                    x / (self.slider1.mark + 1) / float(self.entry1.text.replace(',', '.')),
-                    y / (self.slider1.mark + 1) / float(self.entry1.text.replace(',', '.')))
-                noise_map[x][y] = [noise_value, noise_value, noise_value]
-        number_of_levels = 8
-        # normalize values to 0-number_of_levels
-        noise_map = ((noise_map - np.amin(noise_map)) / noise_map.ptp() * number_of_levels).astype(int)
-        # rescale to 0-255 (grayscale)
-        noise_map = noise_map / number_of_levels * 255
-        surf = pygame.surfarray.make_surface(noise_map)
+                noise_map[x][y] = snoise2(x_factor, y / factor,
+                                          octaves=self.octaves_slider.mark+1, persistence=0.5,
+                                          repeatx=self.MAP_SIZE, repeaty=self.MAP_SIZE, base=0)
 
+        noise_RGB[:, :, 0] = noise_RGB[:, :, 1] = noise_RGB[:, :, 2] = noise_map
+        print("Generation time: %s" % (time() - start_time))
+        number_of_levels = 16
+        # normalize values to 0-number_of_levels
+        noise_RGB = ((noise_RGB - np.amin(noise_map)) / noise_map.ptp() * number_of_levels).astype(int)
+        # rescale to 0-255 (grayscale)
+        noise_RGB = noise_RGB/ number_of_levels * 255
+
+        surf = pygame.surfarray.make_surface(noise_RGB)
         # Update the screen
         self.screen.blit(surf, (self.SCREEN_WIDTH - self.MAP_SIZE - 20, 20))
 
@@ -81,10 +87,18 @@ class Main:
             # Exit if the window closing button is clicked
             if event.type == pygame.QUIT:
                 raise SystemExit
+            if event.type == pygame.MOUSEBUTTONDOWN or event.type == pygame.MOUSEBUTTONUP or event.type == pygame.MOUSEMOTION:
+                if self.octaves_entry.text != str(self.octaves_slider.mark + 1):
+                    self.octaves_entry.text = str(self.octaves_slider.mark + 1)
             # Exit if the 'Esc' key is pressed
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     raise SystemExit
+                if event.key == pygame.K_RETURN:
+                    if 0 < int(self.octaves_entry.text) < 20:
+                        self.octaves_slider.set_mark(int(self.octaves_entry.text) - 1)
+                    else:
+                        self.octaves_entry.text = str(self.octaves_slider.mark + 1)
 
 
 main = Main()
