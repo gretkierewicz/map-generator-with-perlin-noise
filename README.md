@@ -4,8 +4,9 @@ Project of app with use of numpy, pygame and maybe some generators.
 
 ## Features: 
 
-TBD
+* [ ] Using multiprocessing for multiple array's generation or bigger arrays
+* [ ] Adding layers to make more complex surface generation possible
 
 ## Screenshots:
 
-Oh yeah! For sure, soon enough.
+![x](/images/snoise2_example.jpg)
