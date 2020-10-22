@@ -9,4 +9,4 @@ Project of app with use of numpy, pygame and maybe some generators.
 
 ## Screenshots:
 
-![x](/images/snoise2_example.jpg)
+![x](/images/screen%2022.10.2020%20tkinter%20implemented.png)
