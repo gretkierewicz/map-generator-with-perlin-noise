@@ -16,4 +16,4 @@ Project of app with use of numpy, pygame and maybe some generators.
 
 ## Screenshots:
 
-![x](/images/screen%2022.10.2020%20full%20list%20of%20factors.png)
+![x](/images/screen%2023.10.2020%20added%20dynamically%20added%20generators.png)
