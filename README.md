@@ -1,6 +1,6 @@
 # gret_sandbox
 
-Project of app with use of numpy, pygame and maybe some generators.
+Project of app with use of numpy, tkinter and noise generator.
 
 ## Features: 
 
