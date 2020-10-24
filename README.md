@@ -1,21 +1,29 @@
 # gret_sandbox
 
-Project of app with use of numpy, tkinter and noise generator.
+Project of "map" generator.
+Main reason - getting some fun with arrays and visualisation of data. 
+But also, getting know how to use multiprocessing, file management and many other.
 
 ## Features: 
 
-* [x] Generation and visualisation of noise array
-* [x] Adding levels for better visualisation of surface topology
-* [x] Tests with different libraries for choosing one of the best performance in generation
-* [x] Checking Tkinter for building UI (in exchange of Pygame/pgui)
-* [x] Pulling out full list of factors for the best control of noise generator
-* [x] Using multiprocessing for multiple array's generation or bigger arrays (testing_area)
-* [x] Adding layers (many noise arrays) to make more complex surface generation possible
-* [x] Adding additional filters, like gradients
-* [ ] Generation of additional topology details (biomes, rivers, lakes)
-* [ ] Saving setup, profiles
-* [ ] Exporting array/maps
+* [x] **Noise Generator**
+    * [x] Basic generation and visualization of noise array
+        * [x] Levels for better visualisation of surface topology
+    * [x] Controls for noise parameters
+        * [ ] Offsetting controls
+    * [x] Dynamically controlled additional noise arrays for more complex topologies
+
+* [x] **Gradient**
+    * [x] Basic (circle) gradient 
+    * [ ] Controls for pattern parameters
+    * [ ] Option to choose between circle and square pattern
+
+* [x] **Other**
+    * [ ] Generation of additional topology details (biomes, rivers, lakes)
+    * [ ] Multiprocessing for multiple array's generation or bigger arrays generation (tests done!)
+    * [ ] Saving setup, profiles
+    * [ ] Exporting array/maps
 
 ## Screenshots:
 
-![x](/images/screen%2023.10.2020%20added%20square%20gradient.png)
+![x](/images/screen%2024.10.2020%20changed%20for%20circle%20gradient.png)

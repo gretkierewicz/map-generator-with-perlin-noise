@@ -128,12 +128,15 @@ class GradientKit(tk.Frame):
         self.main_bg = parent['bg']
         self.config(bg=self.main_bg)
         self.array = None
+        # radius range 0-1 where 0 is middle of array and 1 is corner
+        self.radius_internal = 0.3
+        self.radius_external = 0.7
 
         # gradient menu
         self.generate_btn = tk.Button(self, text="Make gradient", command=self.generate_gradient)
         self.generate_btn.grid(row=0, column=0, sticky='nw')
         self.show_btn = tk.Button(self, text="Show gradient", command=self.show_gradient)
-        self.show_btn.grid(row=0, column=1, padx=6, sticky='nw')
+        self.show_btn.grid(row=0, column=1, padx=5, sticky='nw')
         self.show_btn.grid_remove()
         self.clear_btn = tk.Button(self, text="Clear gradient",
                                    command=self.clear_gradient, bg='darkred', fg='lightgray')
@@ -143,15 +146,34 @@ class GradientKit(tk.Frame):
     def generate_gradient(self):
         self.array = np.empty((self.root.CANVAS_SIZE, self.root.CANVAS_SIZE), dtype=np.float)
         for i in range(self.root.CANVAS_SIZE // 2):
+            a = self.root.CANVAS_SIZE // 2 - i
             for j in range(self.root.CANVAS_SIZE // 2):
-                x = i if i < j else j
+                # old squared gradient formula
+                # x = i if i < j else j
+                b = self.root.CANVAS_SIZE // 2 - j
+                x = - np.sqrt(a*a + b*b)
                 self.array[i][j] = x
                 self.array[i][self.root.CANVAS_SIZE-j-1] = x
                 self.array[self.root.CANVAS_SIZE-i-1][j] = x
                 self.array[self.root.CANVAS_SIZE-i-1][self.root.CANVAS_SIZE-j-1] = x
-        self.array = ((self.array - np.amin(self.array)) / self.array.ptp())
+
+        if self.radius_external < self.radius_internal:
+            self.array = 1 - self.array
+        # convert radius into array index
+        radius_tmp = int(self.root.CANVAS_SIZE*(1-self.radius_external)/2)
+        self.array[self.array < self.array[radius_tmp, radius_tmp]] = self.array[radius_tmp, radius_tmp]
+        if self.radius_external == self.radius_internal:
+            radius_tmp += 1
+        else:
+            radius_tmp = int(self.root.CANVAS_SIZE*(1-self.radius_internal)/2)
+        self.array[self.array > self.array[radius_tmp, radius_tmp]] = self.array[radius_tmp, radius_tmp]
+
+        if self.array.ptp():
+            self.array = ((self.array - np.amin(self.array)) / self.array.ptp())
+
         if self.root.img is None:
             self.show_gradient()
+
         self.show_btn.grid()
         self.clear_btn.grid()
 
@@ -197,7 +219,7 @@ class Root(tk.Tk):
         self.make_frame_btn.grid(row=1, column=0, padx=3, pady=3, sticky='nwe')
         # create basic gradient kit
         self.gradient = GradientKit(self.col1_frame)
-        self.gradient.grid(row=2, column=0, padx=3, pady=3, sticky='nw')
+        self.gradient.grid(row=2, column=0, padx=2, pady=2, sticky='nw')
 
         # column 2 - generator kits
         self.col2_frame = tk.Frame(self, bg=self.main_bg)
@@ -233,11 +255,11 @@ class Root(tk.Tk):
 
     def display_map(self):
         noise_map = np.empty((self.CANVAS_SIZE, self.CANVAS_SIZE), dtype=np.float)
-        if self.gradient.array is not None:
-            noise_map += self.gradient.array
         for generator in self.dynamic_frames:
             if generator.array is not None:
                 noise_map += float(generator.factor_entry.get()) * generator.array
+        if self.gradient.array is not None:
+            noise_map *= self.gradient.array
         # normalize values to 0-levels
         if noise_map.ptp() != 0:
             noise_map = ((noise_map - np.amin(noise_map)) / noise_map.ptp() * self.levels).astype(int)
