@@ -122,26 +122,34 @@ class GeneratorKit(tk.Frame):
 
 class GradientKit(tk.Frame):
     def __init__(self, parent):
-        tk.Frame.__init__(self, parent)
+        tk.Frame.__init__(self, parent, bd=1, relief=tk.SUNKEN)
         self.root = parent.master
 
         self.main_bg = parent['bg']
         self.config(bg=self.main_bg)
         self.array = None
         # radius range 0-1 where 0 is middle of array and 1 is corner
-        self.radius_internal = 0.3
-        self.radius_external = 0.7
+        self.min_value_radius = 0
+        self.max_value_radius = 1
 
         # gradient menu
         self.generate_btn = tk.Button(self, text="Make gradient", command=self.generate_gradient)
-        self.generate_btn.grid(row=0, column=0, sticky='nw')
+        self.generate_btn.grid(row=0, column=0, padx=5, pady=5, sticky='nw')
         self.show_btn = tk.Button(self, text="Show gradient", command=self.show_gradient)
-        self.show_btn.grid(row=0, column=1, padx=5, sticky='nw')
+        self.show_btn.grid(row=0, column=1, padx=5, pady=5, sticky='nw')
         self.show_btn.grid_remove()
         self.clear_btn = tk.Button(self, text="Clear gradient",
                                    command=self.clear_gradient, bg='darkred', fg='lightgray')
-        self.clear_btn.grid(row=0, column=2, sticky='nw')
+        self.clear_btn.grid(row=0, column=2, padx=5, pady=5, sticky='nw')
         self.clear_btn.grid_remove()
+        # sliders - radius range 0-1 where 0 is middle of array and 1 is corner
+        self.min_value_radius = tk.Scale(self, from_=0, to=1, resolution=0.01, length=275,
+                                         orient=tk.HORIZONTAL, label="Minimum value gradient's radius")
+        self.min_value_radius.grid(row=1, column=0, padx=5, pady=5, columnspan=3)
+        self.max_value_radius = tk.Scale(self, from_=0, to=1, resolution=0.01, length=275,
+                                         orient=tk.HORIZONTAL, label="Maximum value gradient's radius")
+        self.max_value_radius.grid(row=2, column=0, padx=5, pady=5, columnspan=3)
+        self.max_value_radius.set(1)
 
     def generate_gradient(self):
         self.array = np.empty((self.root.CANVAS_SIZE, self.root.CANVAS_SIZE), dtype=np.float)
@@ -157,15 +165,15 @@ class GradientKit(tk.Frame):
                 self.array[self.root.CANVAS_SIZE-i-1][j] = x
                 self.array[self.root.CANVAS_SIZE-i-1][self.root.CANVAS_SIZE-j-1] = x
 
-        if self.radius_external < self.radius_internal:
+        if self.max_value_radius.get() < self.min_value_radius.get():
             self.array = 1 - self.array
         # convert radius into array index
-        radius_tmp = int(self.root.CANVAS_SIZE*(1-self.radius_external)/2)
+        radius_tmp = int(self.root.CANVAS_SIZE * (1 - self.max_value_radius.get()) / 2)
         self.array[self.array < self.array[radius_tmp, radius_tmp]] = self.array[radius_tmp, radius_tmp]
-        if self.radius_external == self.radius_internal:
+        if self.max_value_radius.get() == self.min_value_radius.get():
             radius_tmp += 1
         else:
-            radius_tmp = int(self.root.CANVAS_SIZE*(1-self.radius_internal)/2)
+            radius_tmp = int(self.root.CANVAS_SIZE * (1 - self.min_value_radius.get()) / 2)
         self.array[self.array > self.array[radius_tmp, radius_tmp]] = self.array[radius_tmp, radius_tmp]
 
         if self.array.ptp():
@@ -215,11 +223,11 @@ class Root(tk.Tk):
         self.col1_width = tk.Frame(self.col1_frame, width=300, bg=self.main_bg)
         self.col1_width.grid(row=0, column=0)
         # displaying the whole map button
-        self.make_frame_btn = tk.Button(self.col1_frame, text="Display whole map", command=self.display_map)
+        self.make_frame_btn = tk.Button(self.col1_frame, text="Display the whole map", command=self.display_map)
         self.make_frame_btn.grid(row=1, column=0, padx=3, pady=3, sticky='nwe')
         # create basic gradient kit
         self.gradient = GradientKit(self.col1_frame)
-        self.gradient.grid(row=2, column=0, padx=2, pady=2, sticky='nw')
+        self.gradient.grid(row=2, column=0, pady=3, sticky='n')
 
         # column 2 - generator kits
         self.col2_frame = tk.Frame(self, bg=self.main_bg)
