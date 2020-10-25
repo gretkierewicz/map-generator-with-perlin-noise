@@ -338,17 +338,49 @@ class Root(tk.Tk):
                 noise_map += float(generator.factor_entry.get()) * generator.array
         if self.gradient.array is not None:
             noise_map *= self.gradient.array
+            noise_map = ((noise_map - np.amin(noise_map)) / noise_map.ptp())
 
         # normalize values to 0-levels
         if noise_map.ptp() != 0:
             noise_map = ((noise_map - np.amin(noise_map)) / noise_map.ptp() * self.levels).astype(int)
-            # rescale to 0-255 (grayscale)
-            noise_map = noise_map / self.levels * 255
+            # rescale to 0-1 for colorful topology map
+            noise_map = noise_map / self.levels
         else:
             self.img = None
 
         if self.img is not None:
-            self.img = ImageTk.PhotoImage(image=Image.fromarray(noise_map))
+            """
+            Topology colors:
+            0-25%       -> Red = 0      Green rising    Blue = max 
+            25%-50%     -> Red = 0      Green = max     Blue falling
+            50%-75%     -> Red rising   Green = max     Blue = 0
+            75%-100%    -> Red = max    Green falling   Blue = 0
+            """
+            temp_map = np.empty((self.CANVAS_SIZE, self.CANVAS_SIZE, 3), dtype=np.uint8)
+            brightness = 200
+            # RED
+            tmp = np.copy(noise_map)
+            tmp[tmp < 0.5] = 0.5
+            tmp[tmp > 0.75] = 0.75
+            tmp = ((tmp - np.amin(tmp)) / tmp.ptp())
+            temp_map[:, :, 0] = tmp * brightness
+            # GREEN
+            tmp = np.copy(noise_map)
+            tmp[tmp > 0.25] = 0.25
+            tmp = ((tmp - np.amin(tmp)) / tmp.ptp())
+            temp_map[:, :, 1] = tmp * brightness
+            tmp = np.copy(noise_map)
+            tmp[tmp < 0.75] = 0.75
+            tmp = ((tmp - np.amin(tmp)) / tmp.ptp())
+            temp_map[:, :, 1] = temp_map[:, :, 1] - tmp * brightness
+            # BLUE
+            tmp = np.copy(1 - noise_map)
+            tmp[tmp > 1 - 0.25] = 1 - 0.25
+            tmp[tmp < 1 - 0.5] = 1 - 0.5
+            tmp = ((tmp - np.amin(tmp)) / tmp.ptp())
+            temp_map[:, :, 2] = tmp * brightness
+
+            self.img = ImageTk.PhotoImage(image=Image.fromarray(temp_map))
             self.canvas.itemconfig(self.map_img, image=self.img)
             self.displayed_frame = self
 

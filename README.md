@@ -9,7 +9,8 @@ But also, getting know how to use multiprocessing, file management and many othe
 * [x] **Noise Generator**
     * [x] Basic generation and visualization of noise array
         * [x] Levels for better visualisation of surface topology
-            * [ ] Colors for better topology visualization
+        * [x] Colors for better topology visualization
+            * [ ] Controls for colors, sea level
     * [x] Controls for noise parameters
         * [ ] Offsetting controls
     * [x] Dynamically controlled additional noise arrays for more complex topologies
@@ -27,4 +28,4 @@ But also, getting know how to use multiprocessing, file management and many othe
 
 ## Screenshots:
 
-![x](/images/screenshot.png)
+![x](/images/screen%2025.10.2020%20topology%20map%20with%20colors.png)
