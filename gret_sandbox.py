@@ -273,7 +273,7 @@ class Root(tk.Tk):
         # canvas/array's size
         self.CANVAS_SIZE = 600
         # levels for better image visualization
-        self.levels = 16
+        self.levels = 64
 
         # additional frames for proper placement purposes
         self.corner_offset = tk.Frame(self, width=10, height=10, bg=self.main_bg)
@@ -349,38 +349,59 @@ class Root(tk.Tk):
             self.img = None
 
         if self.img is not None:
-            """
-            Topology colors:
-            0-25%       -> Red = 0      Green rising    Blue = max 
-            25%-50%     -> Red = 0      Green = max     Blue falling
-            50%-75%     -> Red rising   Green = max     Blue = 0
-            75%-100%    -> Red = max    Green falling   Blue = 0
-            """
-            temp_map = np.empty((self.CANVAS_SIZE, self.CANVAS_SIZE, 3), dtype=np.uint8)
+            topographic_map = np.ones((self.CANVAS_SIZE, self.CANVAS_SIZE, 3), dtype=np.float)
             brightness = 200
-            # RED
-            tmp = np.copy(noise_map)
-            tmp[tmp < 0.5] = 0.5
-            tmp[tmp > 0.75] = 0.75
-            tmp = ((tmp - np.amin(tmp)) / tmp.ptp())
-            temp_map[:, :, 0] = tmp * brightness
+            sea_level = 0.3
+            level_1 = 0.5
+            level_2 = 0.8
+            """
+            Topology basic colors and levels for sea (from bottom to seashore):
+            RED     ->  rises from middle of scale twice as fast as heightmap
+            GREEN   ->  rises from bottom to seashore with normal rate of heightmap
+            BLUE    ->  rises from start to middle twice as fast as heightmap 
+            """
             # GREEN
-            tmp = np.copy(noise_map)
-            tmp[tmp > 0.25] = 0.25
-            tmp = ((tmp - np.amin(tmp)) / tmp.ptp())
-            temp_map[:, :, 1] = tmp * brightness
-            tmp = np.copy(noise_map)
-            tmp[tmp < 0.75] = 0.75
-            tmp = ((tmp - np.amin(tmp)) / tmp.ptp())
-            temp_map[:, :, 1] = temp_map[:, :, 1] - tmp * brightness
+            sea = np.copy(noise_map)
+            sea[noise_map > sea_level] = sea_level
+            sea = ((sea - np.amin(sea)) / sea.ptp())
+            topographic_map[:, :, 1] = sea
+            # RED
+            sea = sea * 2 - 1
+            sea[sea < 0] = 0
+            topographic_map[:, :, 0] = sea
             # BLUE
-            tmp = np.copy(1 - noise_map)
-            tmp[tmp > 1 - 0.25] = 1 - 0.25
-            tmp[tmp < 1 - 0.5] = 1 - 0.5
-            tmp = ((tmp - np.amin(tmp)) / tmp.ptp())
-            temp_map[:, :, 2] = tmp * brightness
+            sea = topographic_map[:, :, 1] * 2
+            sea[sea > 1] = 1
+            sea[noise_map >= sea_level] = 0
+            topographic_map[:, :, 2] = sea * brightness
+            """
+            Topology basic colors and levels for land:
+            Seashore: RED = 0, GREEN = 1, BLUE = 0
+            Elevations:
+            seashore-1: GREEN -> 1 | 1-2: RED -> 1 | 2-max: GREEN -> 0
+            """
+            # RED level_1 - level_2
+            land = np.copy(noise_map)
+            land[land < level_1] = level_1
+            land[land > level_2] = level_2
+            land = ((land - np.amin(land)) / land.ptp())
+            land[noise_map < sea_level] = 1
+            topographic_map[:, :, 0] = topographic_map[:, :, 0] * land * brightness
+            # GREEN level_2+
+            land = np.copy(noise_map)
+            land[land < level_2] = level_2
+            land = ((land - np.amin(land)) / land.ptp()) * 0.8
+            topographic_map[:, :, 1] = topographic_map[:, :, 1] * (0.8 - land)
+            # GREEN seashore - 1
+            land = np.copy(noise_map)
+            land[land < sea_level] = sea_level
+            land[land > level_2] = level_2
+            land = ((land - np.amin(land)) / land.ptp())
+            land[noise_map < sea_level] = 1
+            topographic_map[:, :, 1] = topographic_map[:, :, 1] * land * brightness
+            # BLUE - no blue for land!
 
-            self.img = ImageTk.PhotoImage(image=Image.fromarray(temp_map))
+            self.img = ImageTk.PhotoImage(image=Image.fromarray(topographic_map.astype(np.uint8)))
             self.canvas.itemconfig(self.map_img, image=self.img)
             self.displayed_frame = self
 

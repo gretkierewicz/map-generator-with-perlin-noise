@@ -28,4 +28,4 @@ But also, getting know how to use multiprocessing, file management and many othe
 
 ## Screenshots:
 
-![x](/images/screen%2025.10.2020%20topology%20map%20with%20colors.png)
+![x](/images/screen%2026.10.2020%20better%20topoogy%20colors.png)
