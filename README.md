@@ -10,15 +10,15 @@ But also, getting know how to use multiprocessing, file management and many othe
     * [x] Basic generation and visualization of noise array
         * [x] Levels for better visualisation of surface topology
         * [x] Colors for better topology visualization
-            * [ ] Controls for colors, sea level
+            * [x] Additional controls (sea, plains and hills levels)
     * [x] Controls for noise parameters
-        * [ ] Offsetting controls
+        * [ ] Array offsetting
     * [x] Dynamically controlled additional noise arrays for more complex topologies
 
 * [x] **Gradient**
     * [x] Basic (circle) gradient 
-    * [x] Controls for pattern parameters
         * [ ] Option to choose between circle and square pattern
+    * [x] Controls for pattern parameters
 
 * [x] **Other**
     * [ ] Generation of additional topology details (biomes, rivers, lakes)
@@ -28,4 +28,4 @@ But also, getting know how to use multiprocessing, file management and many othe
 
 ## Screenshots:
 
-![x](/images/screen%2026.10.2020%20better%20topoogy%20colors.png)
+![x](/images/screen%2026.10.2020%20controls%20for%20topology%20main%20levels.png)

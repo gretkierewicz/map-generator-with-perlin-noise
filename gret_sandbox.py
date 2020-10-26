@@ -39,6 +39,83 @@ def validate_for_int(p):
         return True
 
 
+def convert_heightmap_into_RGB(heightmap, level_1=0.3, level_2=0.5, level_3=0.5, brightness=1):
+    """
+    convert_heightmap_into_RGB - supportive function
+    :param heightmap: 2D heightmap
+    :param level_1: absolute seashore level (range from 0.01 to 0.99)
+    :param level_2: relative (above seashore) plains level (range from 0.01 to 0.99)
+    :param level_3: relative (above plains) hills level (range from 0.01 to 0.99)
+    :param brightness: brightness of colors for output (range from 0 to 1)
+    :return: 2D array of same size as heightmap, with RGB arguments ([R, G, B])
+    """
+    size = len(heightmap)
+    if size < 10:
+        return None
+    # not perfect, but that assures that this function will work properly
+    if level_1 < 0.01:  level_1 = 0.01
+    if level_1 > 0.99:  level_1 = 0.99
+    if level_2 < 0.01:  level_2 = 0.01
+    if level_2 > 0.99:  level_2 = 0.99
+    if level_3 < 0.01:  level_3 = 0.01
+    if level_3 > 0.99:  level_3 = 0.99
+    if brightness < 0:  brightness = 0
+    if brightness > 1:  brightness = 1
+
+    RGB_map = np.ones((size, size, 3), dtype=np.float)
+    sea_level = level_1
+    plains_level = level_2 * (1 - sea_level) + sea_level
+    hills_level = level_3 * (1 - plains_level) + plains_level
+    """
+    Topology basic colors and levels for sea (from bottom to seashore):
+    RED     ->  rises from middle of scale twice as fast as heightmap
+    GREEN   ->  rises from bottom to seashore with normal rate of heightmap
+    BLUE    ->  rises from start to middle twice as fast as heightmap 
+    """
+    # GREEN
+    tmp_map = np.copy(heightmap)
+    tmp_map[heightmap > sea_level] = sea_level
+    tmp_map = ((tmp_map - np.amin(tmp_map)) / tmp_map.ptp())
+    RGB_map[:, :, 1] = tmp_map
+    # RED
+    tmp_map = tmp_map * 2 - 1
+    tmp_map[tmp_map < 0] = 0
+    RGB_map[:, :, 0] = tmp_map
+    # BLUE
+    tmp_map = RGB_map[:, :, 1] * 2
+    tmp_map[tmp_map > 1] = 1
+    tmp_map[heightmap >= sea_level] = 0
+    RGB_map[:, :, 2] = tmp_map * brightness * 255
+    """
+    Topology basic colors and levels for land:
+    Seashore: RED = 0, GREEN = 1, BLUE = 0
+    Elevations:
+    seashore-1: GREEN -> 1 | 1-2: RED -> 1 | 2-max: GREEN -> 0
+    """
+    # RED plains_level - hills_level
+    tmp_map = np.copy(heightmap)
+    tmp_map[tmp_map < plains_level] = plains_level
+    tmp_map[tmp_map > hills_level] = hills_level
+    tmp_map = ((tmp_map - np.amin(tmp_map)) / tmp_map.ptp())
+    tmp_map[heightmap < sea_level] = 1
+    RGB_map[:, :, 0] = RGB_map[:, :, 0] * tmp_map * brightness * 255
+    # GREEN hills_level+
+    tmp_map = np.copy(heightmap)
+    tmp_map[tmp_map < hills_level] = hills_level
+    tmp_map = ((tmp_map - np.amin(tmp_map)) / tmp_map.ptp()) * 0.8
+    RGB_map[:, :, 1] = RGB_map[:, :, 1] * (0.8 - tmp_map)
+    # GREEN seashore - 1
+    tmp_map = np.copy(heightmap)
+    tmp_map[tmp_map < sea_level] = sea_level
+    tmp_map[tmp_map > hills_level] = hills_level
+    tmp_map = ((tmp_map - np.amin(tmp_map)) / tmp_map.ptp())
+    tmp_map[heightmap < sea_level] = 1
+    RGB_map[:, :, 1] = RGB_map[:, :, 1] * tmp_map * brightness * 255
+    # BLUE - no blue for land!
+
+    return RGB_map.astype(np.uint8)
+
+
 class LabeledEntry(tk.Frame):
     """
     LabelEntry - Supporting Frame of simple entries with labels
@@ -68,6 +145,28 @@ class LabeledEntry(tk.Frame):
 
     def get(self):
         return self.entry.get()
+
+
+class LabeledVerticalScale(tk.Frame):
+    """
+    LabeledVerticalScale - Supporting Frame of vertical slider with labels
+    """
+    def __init__(self, parent, text="", value=0.0):
+        tk.Frame.__init__(self, parent)
+
+        self.main_bg = parent['bg']
+        self.config(bg=self.main_bg)
+
+        label = tk.Label(self, text=text)
+        label.grid(row=0, column=0, padx=5, pady=3, sticky='s')
+        self.slider = tk.Scale(self, from_=0.99, to=0.01, orient=tk.VERTICAL,
+                               resolution=0.01, length=200, width=18)
+        self.slider.grid(row=1, column=0, padx=5, pady=5, sticky='n')
+        self.slider.set(value)
+        label.config(bg=self.slider['bg'])
+
+    def get(self):
+        return self.slider.get()
 
 
 class GeneratorKit(tk.Frame):
@@ -273,9 +372,9 @@ class Root(tk.Tk):
         # canvas/array's size
         self.CANVAS_SIZE = 600
         # levels for better image visualization
-        self.levels = 64
+        self.levels = 24
 
-        # additional frames for proper placement purposes
+        # additional frame for proper placement purposes
         self.corner_offset = tk.Frame(self, width=10, height=10, bg=self.main_bg)
         self.corner_offset.grid(row=0, column=0)
 
@@ -285,12 +384,27 @@ class Root(tk.Tk):
         # col_width frames are only to setup static width of frame (at least that is how I figured it out)
         self.col1_width = tk.Frame(self.col1_frame, width=300, bg=self.main_bg)
         self.col1_width.grid(row=0, column=0)
-        # displaying the whole map button
-        self.make_frame_btn = tk.Button(self.col1_frame, text="Display the whole map", command=self.display_map)
-        self.make_frame_btn.grid(row=1, column=0, padx=3, pady=3, sticky='nwe')
         # create basic gradient kit
         self.gradient = GradientKit(self.col1_frame)
         self.gradient.grid(row=2, column=0, pady=3, sticky='n')
+
+        # Map controls frame
+        self.map_frame = tk.Frame(self.col1_frame, bg=self.main_bg, bd=1, relief=tk.SUNKEN)
+        self.map_frame.grid(row=3, column=0, pady=3, sticky='n')
+        self.map_frame_width = tk.Frame(self.map_frame, width=292, bg=self.main_bg)
+        self.map_frame_width.grid(row=0, column=0, columnspan=4)
+        # sea level slider
+        self.sea_level_slider = LabeledVerticalScale(self.map_frame, text="Sea level", value=0.3)
+        self.sea_level_slider.grid(row=0, column=0, padx=5, pady=3)
+        # plains slider
+        self.plains_level_slider = LabeledVerticalScale(self.map_frame, text="Plains level", value=0.5)
+        self.plains_level_slider.grid(row=0, column=1, padx=5, pady=3)
+        # hills slider
+        self.hills_level_slider = LabeledVerticalScale(self.map_frame, text="Hills level", value=0.5)
+        self.hills_level_slider.grid(row=0, column=2, padx=5, pady=3)
+        # displaying the whole map button
+        self.make_frame_btn = tk.Button(self.map_frame, text="Display the whole map", command=self.display_map)
+        self.make_frame_btn.grid(row=2, column=0, padx=3, pady=3, columnspan=4, sticky='nwe')
 
         # column 2 - generator kits
         self.col2_frame = tk.Frame(self, bg=self.main_bg)
@@ -308,7 +422,7 @@ class Root(tk.Tk):
 
         # column 3 - array display area
         self.canvas = tk.Canvas(self, width=self.CANVAS_SIZE, height=self.CANVAS_SIZE, bg='black')
-        self.canvas.grid(row=1, column=3, padx=5, pady=5, sticky='n')
+        self.canvas.grid(row=1, column=3, padx=5, pady=5, rowspan=2, sticky='n')
         self.img = None
         self.map_img = self.canvas.create_image(2, 2, anchor='nw', image=self.img)
 
@@ -349,59 +463,11 @@ class Root(tk.Tk):
             self.img = None
 
         if self.img is not None:
-            topographic_map = np.ones((self.CANVAS_SIZE, self.CANVAS_SIZE, 3), dtype=np.float)
-            brightness = 200
-            sea_level = 0.3
-            level_1 = 0.5
-            level_2 = 0.8
-            """
-            Topology basic colors and levels for sea (from bottom to seashore):
-            RED     ->  rises from middle of scale twice as fast as heightmap
-            GREEN   ->  rises from bottom to seashore with normal rate of heightmap
-            BLUE    ->  rises from start to middle twice as fast as heightmap 
-            """
-            # GREEN
-            sea = np.copy(noise_map)
-            sea[noise_map > sea_level] = sea_level
-            sea = ((sea - np.amin(sea)) / sea.ptp())
-            topographic_map[:, :, 1] = sea
-            # RED
-            sea = sea * 2 - 1
-            sea[sea < 0] = 0
-            topographic_map[:, :, 0] = sea
-            # BLUE
-            sea = topographic_map[:, :, 1] * 2
-            sea[sea > 1] = 1
-            sea[noise_map >= sea_level] = 0
-            topographic_map[:, :, 2] = sea * brightness
-            """
-            Topology basic colors and levels for land:
-            Seashore: RED = 0, GREEN = 1, BLUE = 0
-            Elevations:
-            seashore-1: GREEN -> 1 | 1-2: RED -> 1 | 2-max: GREEN -> 0
-            """
-            # RED level_1 - level_2
-            land = np.copy(noise_map)
-            land[land < level_1] = level_1
-            land[land > level_2] = level_2
-            land = ((land - np.amin(land)) / land.ptp())
-            land[noise_map < sea_level] = 1
-            topographic_map[:, :, 0] = topographic_map[:, :, 0] * land * brightness
-            # GREEN level_2+
-            land = np.copy(noise_map)
-            land[land < level_2] = level_2
-            land = ((land - np.amin(land)) / land.ptp()) * 0.8
-            topographic_map[:, :, 1] = topographic_map[:, :, 1] * (0.8 - land)
-            # GREEN seashore - 1
-            land = np.copy(noise_map)
-            land[land < sea_level] = sea_level
-            land[land > level_2] = level_2
-            land = ((land - np.amin(land)) / land.ptp())
-            land[noise_map < sea_level] = 1
-            topographic_map[:, :, 1] = topographic_map[:, :, 1] * land * brightness
-            # BLUE - no blue for land!
-
-            self.img = ImageTk.PhotoImage(image=Image.fromarray(topographic_map.astype(np.uint8)))
+            self.img = ImageTk.PhotoImage(image=Image.fromarray(
+                convert_heightmap_into_RGB(noise_map,
+                                           self.sea_level_slider.get(),
+                                           self.plains_level_slider.get(),
+                                           self.hills_level_slider.get())))
             self.canvas.itemconfig(self.map_img, image=self.img)
             self.displayed_frame = self
 
