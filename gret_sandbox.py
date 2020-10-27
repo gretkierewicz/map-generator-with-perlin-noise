@@ -188,7 +188,6 @@ class GeneratorKit(tk.Frame):
         self.main_bg = parent['bg']
         self.config(bg=self.main_bg)
 
-        self.CANVAS_SIZE = 600
         self.array = None
 
         # generator menu
@@ -224,13 +223,13 @@ class GeneratorKit(tk.Frame):
         self.destroy_btn.grid(row=2, column=2, padx=5, pady=5, sticky='we')
 
     def generate_array(self, base=0.0, scale=400.0, octaves=6, persistence=0.5):
-        self.array = np.empty((self.CANVAS_SIZE, self.CANVAS_SIZE), dtype=np.float)
-        for x in range(self.CANVAS_SIZE):
+        self.array = np.empty((self.root.CANVAS_SIZE, self.root.CANVAS_SIZE), dtype=np.float)
+        for x in range(self.root.CANVAS_SIZE):
             x_scale = x / scale
-            for y in range(self.CANVAS_SIZE):
+            for y in range(self.root.CANVAS_SIZE):
                 self.array[x][y] = snoise2(x_scale, y / scale,
                                            octaves=octaves, persistence=persistence,
-                                           repeatx=self.CANVAS_SIZE, repeaty=self.CANVAS_SIZE,
+                                           repeatx=self.root.CANVAS_SIZE, repeaty=self.root.CANVAS_SIZE,
                                            base=base)
 
         # normalize values to the range: 0-1
@@ -361,7 +360,7 @@ class Root(tk.Tk):
         tk.Tk.__init__(self, parent)
         self.title("gret_sandbox")
         #self.state('zoomed')
-        self.geometry("1240x640")
+        self.geometry("1240x840")
         self.main_bg = "gray"
         self.config(bg=self.main_bg)
 
@@ -370,7 +369,7 @@ class Root(tk.Tk):
         # indicator of object of which array is actually displayed - for easy control of refreshing
         self.displayed_frame = None
         # canvas/array's size
-        self.CANVAS_SIZE = 600
+        self.CANVAS_SIZE = 800
         # levels for better image visualization
         self.levels = 24
 
