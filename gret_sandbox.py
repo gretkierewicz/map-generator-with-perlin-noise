@@ -175,17 +175,23 @@ class LabeledVerticalScale(tk.Frame):
     """
     LabeledVerticalScale - Supporting Frame of vertical slider with labels
     """
-    def __init__(self, parent, text="", value=0.0):
+    def __init__(self, parent, text="", value=0.0, slider_func=None):
         tk.Frame.__init__(self, parent)
 
         self.main_bg = parent['bg']
         self.config(bg=self.main_bg)
+        self.slider_events = ["<B1-Motion>",
+                              "<ButtonRelease-1>",
+                              "<B3-Motion>",
+                              "<ButtonRelease-3>"]
 
         label = tk.Label(self, text=text)
         label.grid(row=0, column=0, padx=5, pady=3, sticky='s')
         self.slider = tk.Scale(self, from_=0.99, to=0.01, orient=tk.VERTICAL,
                                resolution=0.01, length=200, width=18)
         self.slider.grid(row=1, column=0, padx=5, pady=5, sticky='n')
+        for event in self.slider_events:
+            self.slider.bind(event, slider_func)
         self.slider.set(value)
         label.config(bg=self.slider['bg'])
 
@@ -301,6 +307,10 @@ class GradientKit(tk.Frame):
         # basic array for faster response of changing pattern's parameters, but it takes 2x RAM!
         self.circle_basic_array = None
         self.array = None
+        self.slider_events = ["<B1-Motion>",
+                              "<ButtonRelease-1>",
+                              "<B3-Motion>",
+                              "<ButtonRelease-3>"]
 
         # gradient menu
         self.generate_btn = tk.Button(self, text="Make gradient", command=self.generate_gradient)
@@ -317,10 +327,18 @@ class GradientKit(tk.Frame):
         self.min_value_radius = tk.Scale(self, from_=0, to=1, resolution=0.01, length=275,
                                          orient=tk.HORIZONTAL, label="Minimum value gradient's radius")
         self.min_value_radius.grid(row=1, column=0, padx=5, pady=5, columnspan=3)
+        for event in self.slider_events:
+            self.min_value_radius.bind(event, self.change_factor_event)
         self.max_value_radius = tk.Scale(self, from_=0, to=1, resolution=0.01, length=275,
                                          orient=tk.HORIZONTAL, label="Maximum value gradient's radius")
         self.max_value_radius.grid(row=2, column=0, padx=5, pady=5, columnspan=3)
+        for event in self.slider_events:
+            self.max_value_radius.bind(event, self.change_factor_event)
         self.max_value_radius.set(1)
+
+    def change_factor_event(self, event):
+        if self.array is not None:
+            self.generate_gradient()
 
     def generate_gradient(self):
         #start_time = time.time()
@@ -388,17 +406,19 @@ class Root(tk.Tk):
     def __init__(self, parent):
         tk.Tk.__init__(self, parent)
         self.title("gret_sandbox")
-        #self.state('zoomed')
+        self.minsize(1150, 550)
         self.geometry("1440x840")
         self.main_bg = "gray"
         self.config(bg=self.main_bg)
+        self.update()
+        self.bind("<Configure>", self.window_resize_event)
 
         # list of dynamically added/removed frames (generator kit frames for now)
         self.dynamic_frames = []
         # indicator of object of which array is actually displayed - for easy control of refreshing
         self.displayed_frame = None
         # canvas/array's size
-        self.CANVAS_SIZE = 800
+        self.CANVAS_SIZE = None
         # levels for better image visualization
         self.levels = 24
 
@@ -422,13 +442,19 @@ class Root(tk.Tk):
         self.map_frame_width = tk.Frame(self.map_frame, width=292, bg=self.main_bg)
         self.map_frame_width.grid(row=0, column=0, columnspan=4)
         # sea level slider
-        self.sea_level_slider = LabeledVerticalScale(self.map_frame, text="Sea level", value=0.3)
+        self.sea_level_slider = LabeledVerticalScale(self.map_frame,
+                                                     text="Sea level", value=0.3,
+                                                     slider_func=self.change_map_level_event)
         self.sea_level_slider.grid(row=0, column=0, padx=5, pady=3)
         # plains slider
-        self.plains_level_slider = LabeledVerticalScale(self.map_frame, text="Plains level", value=0.5)
+        self.plains_level_slider = LabeledVerticalScale(self.map_frame,
+                                                        text="Plains level", value=0.5,
+                                                        slider_func=self.change_map_level_event)
         self.plains_level_slider.grid(row=0, column=1, padx=5, pady=3)
         # hills slider
-        self.hills_level_slider = LabeledVerticalScale(self.map_frame, text="Hills level", value=0.5)
+        self.hills_level_slider = LabeledVerticalScale(self.map_frame,
+                                                       text="Hills level", value=0.5,
+                                                       slider_func=self.change_map_level_event)
         self.hills_level_slider.grid(row=0, column=2, padx=5, pady=3)
         # displaying the whole map button
         self.make_frame_btn = tk.Button(self.map_frame, text="Display the whole map", command=self.display_map)
@@ -453,6 +479,20 @@ class Root(tk.Tk):
         self.canvas.grid(row=1, column=3, padx=5, pady=5, rowspan=2, sticky='n')
         self.img = None
         self.map_img = self.canvas.create_image(2, 2, anchor='nw', image=self.img)
+
+    def change_map_level_event(self, event):
+        if self.displayed_frame is self:
+            self.display_map()
+
+    def window_resize_event(self, event):
+        if self.winfo_width() - 640 < self.winfo_height() - 30:
+            if self.CANVAS_SIZE != self.winfo_width() - 640:
+                self.CANVAS_SIZE = self.winfo_width() - 640
+                self.canvas.configure(width=self.CANVAS_SIZE, height=self.CANVAS_SIZE)
+        else:
+            if self.CANVAS_SIZE != self.winfo_height() - 30:
+                self.CANVAS_SIZE = self.winfo_height() - 30
+                self.canvas.configure(width=self.CANVAS_SIZE, height=self.CANVAS_SIZE)
 
     # Create kit, add it to the list and run grouping method
     def new_generator_kit(self):

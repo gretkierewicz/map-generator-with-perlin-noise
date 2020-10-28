@@ -1,6 +1,6 @@
 # gret_sandbox
 
-Project of "map" generator.
+Project of map generator.
 Main reason - getting some fun with arrays and visualisation of data. 
 But also, getting know how to use multiprocessing, file management and many other.
 
@@ -8,10 +8,10 @@ But also, getting know how to use multiprocessing, file management and many othe
 
 * [x] **Noise Generator**
     * [x] Basic generation and visualization of noise array
-        * [x] Levels for better visualisation of surface topology
-        * [x] Colors for better topology visualization
+        * [x] Basic levels for better visualisation of surface topology
+        * [x] Colors of levels for even better topology visualization
             * [x] Additional controls (sea, plains and hills levels)
-    * [x] Controls for noise parameters
+    * [x] Basic controls for noise parameters (scale, octaves, persistence, base, factor)
         * [ ] Array offsetting
     * [x] Dynamically controlled additional noise arrays for more complex topologies
 
@@ -22,9 +22,10 @@ But also, getting know how to use multiprocessing, file management and many othe
 
 * [x] **Other**
     * [x] Multiprocessing for faster generation of big arrays
+    * [x] Handling different events (resize window, control's value change)
     * [ ] Generation of additional topology details (biomes, rivers, lakes)
     * [ ] Saving setup, profiles
-    * [ ] Exporting array/maps
+    * [ ] Export/Import of arrays/maps
 
 ## Screenshots:
 
