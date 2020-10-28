@@ -21,8 +21,8 @@ But also, getting know how to use multiprocessing, file management and many othe
     * [x] Controls for pattern parameters
 
 * [x] **Other**
+    * [x] Multiprocessing for faster generation of big arrays
     * [ ] Generation of additional topology details (biomes, rivers, lakes)
-    * [ ] Multiprocessing for multiple array's generation or bigger arrays generation (tests done!)
     * [ ] Saving setup, profiles
     * [ ] Exporting array/maps
 

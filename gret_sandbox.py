@@ -1,8 +1,11 @@
+import multiprocessing as mp
 import numpy as np
+import time
 import tkinter as tk
 
-from PIL import Image, ImageTk
 from noise import snoise2
+from functools import partial
+from PIL import Image, ImageTk
 
 
 def validate_for_float(p):
@@ -116,6 +119,27 @@ def convert_heightmap_into_RGB(heightmap, level_1=0.3, level_2=0.5, level_3=0.5,
     return RGB_map.astype(np.uint8)
 
 
+def generate_simplex_row(x, size=800, scale=100.0, octaves=6, persistence=0.5, base=0.0):
+    """
+    simplex_fast - function of generating one row of simplex noise.
+    :param x: number of row, just for purposes of generation 2d array
+    :param size: size of the main array, here it is size of the row
+    :param scale: for controlling speed of changes in the array
+    :param octaves: number of layers, each with more detail
+    :param persistence: influence of each octave on the main one
+    :param base: seed for the array generation (same seed - same output)
+    :return: list of simplex noise values, of given size
+    """
+    noise_row = []
+    x_scale = x / scale
+    for y in range(size):
+        noise_row.append(snoise2(x_scale, y / scale,
+                                 octaves=octaves, persistence=persistence,
+                                 repeatx=size, repeaty=size,
+                                 base=base))
+    return noise_row
+
+
 class LabeledEntry(tk.Frame):
     """
     LabelEntry - Supporting Frame of simple entries with labels
@@ -207,12 +231,7 @@ class GeneratorKit(tk.Frame):
         self.factor_entry = LabeledEntry(self, text="Factor: ", validatefor='float', value=1)
         self.factor_entry.grid(row=1, column=2, sticky='e')
 
-        self.generate_btn = tk.Button(self, text="Generate", command=lambda: self.generate_array(
-            base=float(self.base_entry.get()),
-            scale=float(self.scale_entry.get()),
-            octaves=int(self.octaves_entry.get()),
-            persistence=float(self.persistence_entry.get())
-        ))
+        self.generate_btn = tk.Button(self, text="Generate", command=self.generate_array)
         self.generate_btn.grid(row=2, column=0, padx=5, pady=5, sticky='we')
 
         self.show_btn = tk.Button(self, text="Show", command=self.show_array)
@@ -222,15 +241,23 @@ class GeneratorKit(tk.Frame):
         self.destroy_btn = tk.Button(self, text="Delete", command=self.self_destroy, bg='darkred', fg='lightgray')
         self.destroy_btn.grid(row=2, column=2, padx=5, pady=5, sticky='we')
 
-    def generate_array(self, base=0.0, scale=400.0, octaves=6, persistence=0.5):
+    def generate_array(self):
         self.array = np.empty((self.root.CANVAS_SIZE, self.root.CANVAS_SIZE), dtype=np.float)
-        for x in range(self.root.CANVAS_SIZE):
-            x_scale = x / scale
-            for y in range(self.root.CANVAS_SIZE):
-                self.array[x][y] = snoise2(x_scale, y / scale,
-                                           octaves=octaves, persistence=persistence,
-                                           repeatx=self.root.CANVAS_SIZE, repeaty=self.root.CANVAS_SIZE,
-                                           base=base)
+
+        if mp.cpu_count() > 6:
+            p = mp.Pool(6)
+        else:
+            p = mp.Pool()
+        simplex_row_partial = partial(generate_simplex_row,
+                                       size=self.root.CANVAS_SIZE,
+                                       scale=float(self.scale_entry.get()),
+                                       octaves=int(self.octaves_entry.get()),
+                                       persistence=float(self.persistence_entry.get()),
+                                       base=float(self.base_entry.get()))
+        #start_time = time.time()
+        list_tmp = p.map(simplex_row_partial, range(self.root.CANVAS_SIZE))
+        #print("GeneratorKit array generation time:  %.4f seconds" % (time.time() - start_time))
+        self.array = np.array(list_tmp)
 
         # normalize values to the range: 0-1
         if self.array.ptp():
@@ -296,6 +323,7 @@ class GradientKit(tk.Frame):
         self.max_value_radius.set(1)
 
     def generate_gradient(self):
+        #start_time = time.time()
         if self.circle_basic_array is None:
             self.circle_basic_array = np.empty((self.root.CANVAS_SIZE, self.root.CANVAS_SIZE), dtype=np.float)
             for i in range(self.root.CANVAS_SIZE // 2):
@@ -340,6 +368,7 @@ class GradientKit(tk.Frame):
 
         self.show_btn.grid()
         self.clear_btn.grid()
+        #print("Gradient array generation time:  %.4f seconds" % (time.time() - start_time))
 
     def show_gradient(self):
         # normalize values to 0-levels and rescale to 0-255 (grayscale)
@@ -360,7 +389,7 @@ class Root(tk.Tk):
         tk.Tk.__init__(self, parent)
         self.title("gret_sandbox")
         #self.state('zoomed')
-        self.geometry("1240x840")
+        self.geometry("1440x840")
         self.main_bg = "gray"
         self.config(bg=self.main_bg)
 
