@@ -52,8 +52,8 @@ def convert_heightmap_into_RGB(heightmap, level_1=0.3, level_2=0.5, level_3=0.5,
     :param brightness: brightness of colors for output (range from 0 to 1)
     :return: 2D array of same size as heightmap, with RGB arguments ([R, G, B])
     """
-    size = len(heightmap)
-    if size < 10:
+    array_shape = np.shape(heightmap)
+    if array_shape[0] < 10 or array_shape[1] < 10:
         return None
     # not perfect, but that assures that this function will work properly
     if level_1 < 0.01:  level_1 = 0.01
@@ -65,7 +65,7 @@ def convert_heightmap_into_RGB(heightmap, level_1=0.3, level_2=0.5, level_3=0.5,
     if brightness < 0:  brightness = 0
     if brightness > 1:  brightness = 1
 
-    RGB_map = np.ones((size, size, 3), dtype=np.float)
+    RGB_map = np.ones((array_shape[0], array_shape[1], 3), dtype=np.float)
     sea_level = level_1
     plains_level = level_2 * (1 - sea_level) + sea_level
     hills_level = level_3 * (1 - plains_level) + plains_level
@@ -119,9 +119,9 @@ def convert_heightmap_into_RGB(heightmap, level_1=0.3, level_2=0.5, level_3=0.5,
     return RGB_map.astype(np.uint8)
 
 
-def generate_simplex_row(x, size=800, scale=100.0, octaves=6, persistence=0.5, base=0.0):
+def generate_simplex_row(x, size, scale=100.0, octaves=6, persistence=0.5, base=0.0):
     """
-    simplex_fast - function of generating one row of simplex noise.
+    generate_simplex_row - function of generating one row of simplex noise.
     :param x: number of row, just for purposes of generation 2d array
     :param size: size of the main array, here it is size of the row
     :param scale: for controlling speed of changes in the array
@@ -247,21 +247,21 @@ class GeneratorKit(tk.Frame):
         self.destroy_btn = tk.Button(self, text="Delete", command=self.self_destroy, bg='darkred', fg='lightgray')
         self.destroy_btn.grid(row=2, column=2, padx=5, pady=5, sticky='we')
 
-    def generate_array(self):
-        self.array = np.empty((self.root.CANVAS_SIZE, self.root.CANVAS_SIZE), dtype=np.float)
+    def generate_array(self, refresh_map=True):
+        self.array = np.empty(self.root.MAP_SIZE, dtype=np.float)
 
         if mp.cpu_count() > 6:
             p = mp.Pool(6)
         else:
             p = mp.Pool()
         simplex_row_partial = partial(generate_simplex_row,
-                                       size=self.root.CANVAS_SIZE,
+                                       size=self.root.MAP_SIZE[1],
                                        scale=float(self.scale_entry.get()),
                                        octaves=int(self.octaves_entry.get()),
                                        persistence=float(self.persistence_entry.get()),
                                        base=float(self.base_entry.get()))
         #start_time = time.time()
-        list_tmp = p.map(simplex_row_partial, range(self.root.CANVAS_SIZE))
+        list_tmp = p.map(simplex_row_partial, range(self.root.MAP_SIZE[0]))
         #print("GeneratorKit array generation time:  %.4f seconds" % (time.time() - start_time))
         self.array = np.array(list_tmp)
 
@@ -269,10 +269,11 @@ class GeneratorKit(tk.Frame):
         if self.array.ptp():
             self.array = ((self.array - np.amin(self.array)) / self.array.ptp())
 
-        if self.root.img is None or self.root.displayed_frame is self:
-            self.show_array()
-        elif self.root.displayed_frame is self.root:
-            self.root.display_map()
+        if refresh_map:
+            if self.root.img is None or self.root.displayed_frame is self:
+                self.show_array()
+            elif self.root.displayed_frame is self.root:
+                self.root.display_map()
 
         self.show_btn.grid()
 
@@ -340,20 +341,22 @@ class GradientKit(tk.Frame):
         if self.array is not None:
             self.generate_gradient()
 
-    def generate_gradient(self):
+    def generate_gradient(self, refresh_map=True):
         #start_time = time.time()
-        if self.circle_basic_array is None:
-            self.circle_basic_array = np.empty((self.root.CANVAS_SIZE, self.root.CANVAS_SIZE), dtype=np.float)
-            for i in range(self.root.CANVAS_SIZE // 2):
-                a = self.root.CANVAS_SIZE // 2 - i
-                for j in range(self.root.CANVAS_SIZE // 2):
+        if self.circle_basic_array is None \
+                or np.shape(self.circle_basic_array)[0] != self.root.MAP_SIZE[0]\
+                or np.shape(self.circle_basic_array)[1] != self.root.MAP_SIZE[1]:
+            self.circle_basic_array = np.empty(self.root.MAP_SIZE, dtype=np.float)
+            for i in range(self.root.MAP_SIZE[0] // 2):
+                a = self.root.MAP_SIZE[0] // 2 - i
+                for j in range(self.root.MAP_SIZE[1] // 2):
                     # old squared gradient formula: x = i if i < j else j
-                    b = self.root.CANVAS_SIZE // 2 - j
+                    b = self.root.MAP_SIZE[1] // 2 - j
                     x = - np.sqrt(a*a + b*b)
                     self.circle_basic_array[i][j] = x
-                    self.circle_basic_array[i][self.root.CANVAS_SIZE-j-1] = x
-                    self.circle_basic_array[self.root.CANVAS_SIZE-i-1][j] = x
-                    self.circle_basic_array[self.root.CANVAS_SIZE-i-1][self.root.CANVAS_SIZE-j-1] = x
+                    self.circle_basic_array[i][self.root.MAP_SIZE[1]-j-1] = x
+                    self.circle_basic_array[self.root.MAP_SIZE[0]-i-1][j] = x
+                    self.circle_basic_array[self.root.MAP_SIZE[0]-i-1][self.root.MAP_SIZE[1]-j-1] = x
 
         if self.max_value_radius.get() < self.min_value_radius.get():
             # allowing reversing gradient pattern (middle is suppressed instead of borders)
@@ -362,27 +365,31 @@ class GradientKit(tk.Frame):
             self.array = np.copy(self.circle_basic_array)
 
         # convert radius into array index
-        index_of_border = int(self.root.CANVAS_SIZE * (1 - self.max_value_radius.get()) / 2)
-        self.array[self.array < self.array[index_of_border, index_of_border]] = \
-            self.array[index_of_border, index_of_border]
+        x_of_border = int(self.root.MAP_SIZE[0] * (1 - self.max_value_radius.get()) / 2)
+        y_of_border = int(self.root.MAP_SIZE[1] * (1 - self.max_value_radius.get()) / 2)
+        self.array[self.array < self.array[x_of_border, y_of_border]] = \
+            self.array[x_of_border, y_of_border]
 
         if self.max_value_radius.get() == self.min_value_radius.get():
             # in case of equal values, make sure indexes differ at least by 1 (pattern gets blank otherwise)
-            index_of_border += 1
+            x_of_border += 1
+            y_of_border += 1
         else:
-            index_of_border = int(self.root.CANVAS_SIZE * (1 - self.min_value_radius.get()) / 2)
+            x_of_border = int(self.root.MAP_SIZE[0] * (1 - self.min_value_radius.get()) / 2)
+            y_of_border = int(self.root.MAP_SIZE[1] * (1 - self.min_value_radius.get()) / 2)
 
-        self.array[self.array > self.array[index_of_border, index_of_border]] = \
-            self.array[index_of_border, index_of_border]
+        self.array[self.array > self.array[x_of_border, y_of_border]] = \
+            self.array[x_of_border, y_of_border]
 
         # normalize values to the range: 0-1
         if self.array.ptp():
             self.array = ((self.array - np.amin(self.array)) / self.array.ptp())
 
-        if self.root.img is None or self.root.displayed_frame is self:
-            self.show_gradient()
-        elif self.root.displayed_frame is self.root:
-            self.root.display_map()
+        if refresh_map:
+            if self.root.img is None or self.root.displayed_frame is self:
+                self.show_gradient()
+            elif self.root.displayed_frame is self.root:
+                self.root.display_map()
 
         self.show_btn.grid()
         self.clear_btn.grid()
@@ -407,7 +414,7 @@ class Root(tk.Tk):
         tk.Tk.__init__(self, parent)
         self.title("gret_sandbox")
         self.minsize(1150, 550)
-        self.geometry("1440x840")
+        self.geometry("1430x830")
         self.main_bg = "gray"
         self.config(bg=self.main_bg)
         self.update()
@@ -417,8 +424,10 @@ class Root(tk.Tk):
         self.dynamic_frames = []
         # indicator of object of which array is actually displayed - for easy control of refreshing
         self.displayed_frame = None
-        # canvas/array's size
-        self.CANVAS_SIZE = None
+        # canvas' size (height, width) - to be the same as for MAP_SIZE
+        self.CANVAS_SIZE = (0, 0)
+        # array's size (rows, columns) => (height, width)
+        self.MAP_SIZE = (800, 800)
         # levels for better image visualization
         self.levels = 24
 
@@ -440,7 +449,7 @@ class Root(tk.Tk):
         self.map_frame = tk.Frame(self.col1_frame, bg=self.main_bg, bd=1, relief=tk.SUNKEN)
         self.map_frame.grid(row=3, column=0, pady=3, sticky='n')
         self.map_frame_width = tk.Frame(self.map_frame, width=292, bg=self.main_bg)
-        self.map_frame_width.grid(row=0, column=0, columnspan=4)
+        self.map_frame_width.grid(row=0, column=0, columnspan=5)
         # sea level slider
         self.sea_level_slider = LabeledVerticalScale(self.map_frame,
                                                      text="Sea level", value=0.3,
@@ -456,9 +465,20 @@ class Root(tk.Tk):
                                                        text="Hills level", value=0.5,
                                                        slider_func=self.change_map_level_event)
         self.hills_level_slider.grid(row=0, column=2, padx=5, pady=3)
+        # resize map frame
+        self.resize_map_frame = tk.Frame(self.map_frame, bg=self.main_bg)
+        self.resize_map_frame.grid(row=1, column=0, padx=5, columnspan=4, sticky='we')
+        self.map_width_entry = LabeledEntry(self.resize_map_frame, text="Map width: ",
+                                            validatefor='int', value=self.MAP_SIZE[0])
+        self.map_width_entry.grid(row=1, column=0, columnspan=2, sticky='w')
+        self.map_height_entry = LabeledEntry(self.resize_map_frame, text="height: ",
+                                             validatefor='int', value=self.MAP_SIZE[1])
+        self.map_height_entry.grid(row=1, column=2, columnspan=2, sticky='w')
+        self.resize_arrays_btn = tk.Button(self.resize_map_frame, text="Apply", width=7, command=self.resize_arrays)
+        self.resize_arrays_btn.grid(row=1, column=4, sticky='e')
         # displaying the whole map button
         self.make_frame_btn = tk.Button(self.map_frame, text="Display the whole map", command=self.display_map)
-        self.make_frame_btn.grid(row=2, column=0, padx=3, pady=3, columnspan=4, sticky='nwe')
+        self.make_frame_btn.grid(row=2, column=0, padx=3, pady=3, columnspan=5, sticky='nwe')
 
         # column 2 - generator kits
         self.col2_frame = tk.Frame(self, bg=self.main_bg)
@@ -475,7 +495,7 @@ class Root(tk.Tk):
         self.make_frame_btn.grid(row=2, column=0, padx=3, pady=3, sticky='nwe')
 
         # column 3 - array display area
-        self.canvas = tk.Canvas(self, width=self.CANVAS_SIZE, height=self.CANVAS_SIZE, bg='black')
+        self.canvas = tk.Canvas(self, width=self.CANVAS_SIZE[1], height=self.CANVAS_SIZE[0], bg='black')
         self.canvas.grid(row=1, column=3, padx=5, pady=5, rowspan=2, sticky='n')
         self.img = None
         self.map_img = self.canvas.create_image(2, 2, anchor='nw', image=self.img)
@@ -485,14 +505,25 @@ class Root(tk.Tk):
             self.display_map()
 
     def window_resize_event(self, event):
-        if self.winfo_width() - 640 < self.winfo_height() - 30:
-            if self.CANVAS_SIZE != self.winfo_width() - 640:
-                self.CANVAS_SIZE = self.winfo_width() - 640
-                self.canvas.configure(width=self.CANVAS_SIZE, height=self.CANVAS_SIZE)
-        else:
-            if self.CANVAS_SIZE != self.winfo_height() - 30:
-                self.CANVAS_SIZE = self.winfo_height() - 30
-                self.canvas.configure(width=self.CANVAS_SIZE, height=self.CANVAS_SIZE)
+        if self.CANVAS_SIZE[1] != self.winfo_width() - 630 or self.CANVAS_SIZE[0] != self.winfo_height() - 30:
+            self.CANVAS_SIZE = (self.winfo_height() - 30, self.winfo_width() - 630)
+            self.canvas.configure(width=self.CANVAS_SIZE[1], height=self.CANVAS_SIZE[0])
+            #print(self.CANVAS_SIZE)
+
+    def resize_arrays(self):
+        if int(self.map_height_entry.get()) < 400:
+            self.map_height_entry.entry.delete(0, tk.END)
+            self.map_height_entry.entry.insert(0, 400)
+        if int(self.map_width_entry.get()) < 400:
+            self.map_width_entry.entry.delete(0, tk.END)
+            self.map_width_entry.entry.insert(0, 400)
+        self.MAP_SIZE = (int(self.map_height_entry.get()), int(self.map_width_entry.get()))
+        for generator in self.dynamic_frames:
+            if generator.array is not None:
+                generator.generate_array(refresh_map=False)
+        if self.gradient.array is not None:
+            self.gradient.generate_gradient(refresh_map=False)
+        self.display_map()
 
     # Create kit, add it to the list and run grouping method
     def new_generator_kit(self):
@@ -513,17 +544,17 @@ class Root(tk.Tk):
 
     # display all arrays, mixed together
     def display_map(self):
-        noise_map = np.empty((self.CANVAS_SIZE, self.CANVAS_SIZE), dtype=np.float)
+        noise_map = np.empty(self.MAP_SIZE, dtype=np.float)
         for generator in self.dynamic_frames:
             if generator.array is not None:
                 # the only place of using 'factor' parameter - it wages influence of each array
                 noise_map += float(generator.factor_entry.get()) * generator.array
-        if self.gradient.array is not None:
-            noise_map *= self.gradient.array
-            noise_map = ((noise_map - np.amin(noise_map)) / noise_map.ptp())
 
         # normalize values to 0-levels
         if noise_map.ptp() != 0:
+            if self.gradient.array is not None:
+                noise_map *= self.gradient.array
+                noise_map = ((noise_map - np.amin(noise_map)) / noise_map.ptp())
             noise_map = ((noise_map - np.amin(noise_map)) / noise_map.ptp() * self.levels).astype(int)
             # rescale to 0-1 for colorful topology map
             noise_map = noise_map / self.levels
