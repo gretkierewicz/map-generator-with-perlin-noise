@@ -135,7 +135,6 @@ def generate_simplex_row(x, size, scale=100.0, octaves=6, persistence=0.5, base=
     for y in range(size):
         noise_row.append(snoise2(x_scale, y / scale,
                                  octaves=octaves, persistence=persistence,
-                                 repeatx=size, repeaty=size,
                                  base=base))
     return noise_row
 
@@ -180,15 +179,13 @@ class LabeledVerticalScale(tk.Frame):
 
         self.main_bg = parent['bg']
         self.config(bg=self.main_bg)
-        self.slider_events = ["<B1-Motion>",
-                              "<ButtonRelease-1>",
-                              "<B3-Motion>",
+        self.slider_events = ["<ButtonRelease-1>",
                               "<ButtonRelease-3>"]
 
         label = tk.Label(self, text=text)
         label.grid(row=0, column=0, padx=5, pady=3, sticky='s')
         self.slider = tk.Scale(self, from_=0.99, to=0.01, orient=tk.VERTICAL,
-                               resolution=0.01, length=200, width=18)
+                               resolution=0.05, length=200, width=18)
         self.slider.grid(row=1, column=0, padx=5, pady=5, sticky='n')
         for event in self.slider_events:
             self.slider.bind(event, slider_func)
@@ -316,7 +313,7 @@ class GradientKit(tk.Frame):
         # gradient menu
         self.generate_btn = tk.Button(self, text="Make gradient", command=self.generate_gradient)
         self.generate_btn.grid(row=0, column=0, padx=5, pady=5, sticky='nw')
-        self.show_btn = tk.Button(self, text="Show gradient", command=self.show_gradient)
+        self.show_btn = tk.Button(self, text="Show gradient", command=self.show_array)
         self.show_btn.grid(row=0, column=1, padx=5, pady=5, sticky='nw')
         self.show_btn.grid_remove()
         self.clear_btn = tk.Button(self, text="Clear gradient",
@@ -387,7 +384,7 @@ class GradientKit(tk.Frame):
 
         if refresh_map:
             if self.root.img is None or self.root.displayed_frame is self:
-                self.show_gradient()
+                self.show_array()
             elif self.root.displayed_frame is self.root:
                 self.root.display_map()
 
@@ -395,7 +392,7 @@ class GradientKit(tk.Frame):
         self.clear_btn.grid()
         #print("Gradient array generation time:  %.4f seconds" % (time.time() - start_time))
 
-    def show_gradient(self):
+    def show_array(self):
         # normalize values to 0-levels and rescale to 0-255 (grayscale)
         noise_map = (self.array * self.root.levels).astype(int) / self.root.levels * 255
         self.root.img = ImageTk.PhotoImage(image=Image.fromarray(noise_map))
@@ -414,7 +411,7 @@ class Root(tk.Tk):
         tk.Tk.__init__(self, parent)
         self.title("gret_sandbox")
         self.minsize(1150, 550)
-        self.geometry("1430x830")
+        self.geometry("1440x840")
         self.main_bg = "gray"
         self.config(bg=self.main_bg)
         self.update()
@@ -495,18 +492,33 @@ class Root(tk.Tk):
         self.make_frame_btn.grid(row=2, column=0, padx=3, pady=3, sticky='nwe')
 
         # column 3 - array display area
-        self.canvas = tk.Canvas(self, width=self.CANVAS_SIZE[1], height=self.CANVAS_SIZE[0], bg='black')
-        self.canvas.grid(row=1, column=3, padx=5, pady=5, rowspan=2, sticky='n')
+        self.canvas_frame = tk.Frame(self, bg=self.main_bg)
+        self.canvas_frame.grid(row=1, column=3)
+        self.canvas = tk.Canvas(self.canvas_frame, scrollregion=(0, 0, self.MAP_SIZE[1], self.MAP_SIZE[0]),
+                                width=self.CANVAS_SIZE[1], height=self.CANVAS_SIZE[0], bg='black')
+        self.canvas.grid(row=0, column=0, sticky='nw')
         self.img = None
         self.map_img = self.canvas.create_image(2, 2, anchor='nw', image=self.img)
+        # scrollbars for canvas
+        self.canvas_horizontal_slider = tk.Scrollbar(self.canvas_frame, orient=tk.VERTICAL)
+        self.canvas_horizontal_slider.grid(row=0, column=1, sticky='ns')
+        self.canvas_horizontal_slider.config(command=self.canvas.yview)
+        self.canvas_vertical_slider = tk.Scrollbar(self.canvas_frame, orient=tk.HORIZONTAL)
+        self.canvas_vertical_slider.grid(row=1, column=0, sticky='we')
+        self.canvas_vertical_slider.config(command=self.canvas.xview)
+        self.canvas.config(yscrollcommand=self.canvas_horizontal_slider.set,
+                           xscrollcommand=self.canvas_vertical_slider.set)
 
     def change_map_level_event(self, event):
         if self.displayed_frame is self:
             self.display_map()
 
     def window_resize_event(self, event):
-        if self.CANVAS_SIZE[1] != self.winfo_width() - 630 or self.CANVAS_SIZE[0] != self.winfo_height() - 30:
-            self.CANVAS_SIZE = (self.winfo_height() - 30, self.winfo_width() - 630)
+        save_width = 640
+        save_height = 40
+        if self.CANVAS_SIZE[1] != self.winfo_width() - save_width \
+                or self.CANVAS_SIZE[0] != self.winfo_height() - save_height:
+            self.CANVAS_SIZE = (self.winfo_height() - save_height, self.winfo_width() - save_width)
             self.canvas.configure(width=self.CANVAS_SIZE[1], height=self.CANVAS_SIZE[0])
             #print(self.CANVAS_SIZE)
 
@@ -518,12 +530,16 @@ class Root(tk.Tk):
             self.map_width_entry.entry.delete(0, tk.END)
             self.map_width_entry.entry.insert(0, 400)
         self.MAP_SIZE = (int(self.map_height_entry.get()), int(self.map_width_entry.get()))
+        self.canvas.config(scrollregion=(0, 0, self.MAP_SIZE[1], self.MAP_SIZE[0]))
         for generator in self.dynamic_frames:
             if generator.array is not None:
                 generator.generate_array(refresh_map=False)
         if self.gradient.array is not None:
             self.gradient.generate_gradient(refresh_map=False)
-        self.display_map()
+        try:
+            self.displayed_frame.show_array()
+        except AttributeError:
+            self.display_map()
 
     # Create kit, add it to the list and run grouping method
     def new_generator_kit(self):

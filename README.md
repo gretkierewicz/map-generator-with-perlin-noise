@@ -11,6 +11,8 @@ But also, getting know how to use multiprocessing, file management and many othe
         * [x] Basic levels for better visualisation of surface topology
         * [x] Colors of levels for even better topology visualization
             * [x] Additional controls (sea, plains and hills levels)
+            * [x] Scrolling option for bigger maps
+            * [ ] Zoom
     * [x] Basic controls for noise parameters (scale, octaves, persistence, base, factor)
         * [ ] Array offsetting
     * [x] Dynamically controlled additional noise arrays for more complex topologies
