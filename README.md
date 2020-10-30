@@ -12,6 +12,7 @@ But also, getting know how to use multiprocessing, file management and many othe
         * [x] Colors of levels for even better topology visualization
             * [x] Additional controls (sea, plains and hills levels)
             * [x] Scrolling option for bigger maps
+                * [x] Drag and drop the map
             * [ ] Zoom
     * [x] Basic controls for noise parameters (scale, octaves, persistence, base, factor)
         * [ ] Array offsetting
@@ -31,4 +32,4 @@ But also, getting know how to use multiprocessing, file management and many othe
 
 ## Screenshots:
 
-![x](/images/screen%2026.10.2020%20controls%20for%20topology%20main%20levels.png)
+![x](/images/screen%2030.10.2020%20resize%20and%20scrolling%20added.png)

@@ -498,16 +498,19 @@ class Root(tk.Tk):
                                 width=self.CANVAS_SIZE[1], height=self.CANVAS_SIZE[0], bg='black')
         self.canvas.grid(row=0, column=0, sticky='nw')
         self.img = None
-        self.map_img = self.canvas.create_image(2, 2, anchor='nw', image=self.img)
+        self.map_img = self.canvas.create_image(0, 0, anchor='nw', image=self.img)
         # scrollbars for canvas
-        self.canvas_horizontal_slider = tk.Scrollbar(self.canvas_frame, orient=tk.VERTICAL)
-        self.canvas_horizontal_slider.grid(row=0, column=1, sticky='ns')
-        self.canvas_horizontal_slider.config(command=self.canvas.yview)
-        self.canvas_vertical_slider = tk.Scrollbar(self.canvas_frame, orient=tk.HORIZONTAL)
-        self.canvas_vertical_slider.grid(row=1, column=0, sticky='we')
-        self.canvas_vertical_slider.config(command=self.canvas.xview)
-        self.canvas.config(yscrollcommand=self.canvas_horizontal_slider.set,
-                           xscrollcommand=self.canvas_vertical_slider.set)
+        self.canvas_side_scrollbar = tk.Scrollbar(self.canvas_frame, orient=tk.VERTICAL)
+        self.canvas_side_scrollbar.grid(row=0, column=1, sticky='ns')
+        self.canvas_side_scrollbar.config(command=self.canvas.yview)
+        self.canvas_bottom_scrollbar = tk.Scrollbar(self.canvas_frame, orient=tk.HORIZONTAL)
+        self.canvas_bottom_scrollbar.grid(row=1, column=0, sticky='we')
+        self.canvas_bottom_scrollbar.config(command=self.canvas.xview)
+        self.canvas.config(yscrollcommand=self.canvas_side_scrollbar.set,
+                           xscrollcommand=self.canvas_bottom_scrollbar.set)
+        # some additional bind for drag and drop the canvas
+        self.canvas.bind('<Button-1>', lambda event: self.canvas.scan_mark(event.x // 10, event.y // 10))
+        self.canvas.bind('<B1-Motion>', lambda event: self.canvas.scan_dragto(event.x // 10, event.y // 10))
 
     def change_map_level_event(self, event):
         if self.displayed_frame is self:
