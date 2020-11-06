@@ -43,8 +43,7 @@ def convert_heightmap_into_RGB(heightmap, brightness=1, levels=None, rgb_dict=No
     if len(levels) > 1:
         for i in range(1, len(levels)):
             levels[i] = levels[i] * (1 - levels[i-1]) + levels[i-1]
-    if levels[0] != 0:
-        levels = [0.0] + levels
+    levels = [0.0] + levels
     if levels[-1] != 1:
         levels = levels + [1.0]
 
@@ -57,7 +56,7 @@ def convert_heightmap_into_RGB(heightmap, brightness=1, levels=None, rgb_dict=No
         for key in rgb_dict:
             tmp_map = heightmap.copy()
             tmp_map[heightmap > levels[i]] = levels[i]
-            tmp_map[heightmap <= levels[i-1]] = levels[i-1]
+            tmp_map[heightmap < levels[i-1]] = levels[i-1]
             if tmp_map.ptp() != 0:
                 tmp_map = (tmp_map - amin(tmp_map)) / tmp_map.ptp()
             tmp_map = tmp_map * rgb_dict[key][i-1][0] + rgb_dict[key][i-1][1]
@@ -66,7 +65,7 @@ def convert_heightmap_into_RGB(heightmap, brightness=1, levels=None, rgb_dict=No
             tmp_map[tmp_map > 1] = 1
             # zero values out of level so all of them can be added easily
             tmp_map[heightmap > levels[i]] = 0
-            tmp_map[heightmap < levels[i-1]] = 0
+            tmp_map[heightmap <= levels[i-1]] = 0
             if key == 'R':
                 RGB_map[:, :, 0] += tmp_map
             if key == 'G':
