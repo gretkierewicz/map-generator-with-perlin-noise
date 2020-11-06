@@ -7,7 +7,6 @@ from gret_tkinter_widgets import *
 from PIL import Image, ImageTk
 
 
-
 class Root(tk.Tk):
     def __init__(self, parent):
         tk.Tk.__init__(self, parent)
@@ -174,7 +173,6 @@ class Root(tk.Tk):
         if noise_map.ptp() != 0:
             if self.gradient.array is not None:
                 noise_map *= self.gradient.array
-                noise_map = ((noise_map - np.amin(noise_map)) / noise_map.ptp())
             noise_map = ((noise_map - np.amin(noise_map)) / noise_map.ptp() * self.levels).astype(int)
             # rescale to 0-1 for colorful topology map
             noise_map = noise_map / self.levels

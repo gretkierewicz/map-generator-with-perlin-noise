@@ -134,9 +134,7 @@ class GradientKit(Frame):
         # basic array for faster response of changing pattern's parameters, but it takes 2x RAM!
         self.circle_basic_array = None
         self.array = None
-        self.slider_events = ["<B1-Motion>",
-                              "<ButtonRelease-1>",
-                              "<B3-Motion>",
+        self.slider_events = ["<ButtonRelease-1>",
                               "<ButtonRelease-3>"]
 
         # gradient menu
