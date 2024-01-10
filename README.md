@@ -1,4 +1,4 @@
-# gret_sandbox
+# Map generator with perlin noise
 
 Project of map generator.
 Main reason - getting some fun with arrays and visualisation of data. 
